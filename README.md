@@ -57,7 +57,7 @@ controlling how the file is read:
 
 ## 3. Requirements
 
-Lua 5.1 or 5.1 or LuaJIT.
+Lua 5.1, 5.2 or LuaJIT.
 
 
 ## 4. Issues
