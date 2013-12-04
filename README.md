@@ -62,9 +62,13 @@ Lua 5.1, 5.2 or LuaJIT.
 
 ## 4. Issues
 
-+ It won't cope with multiple delimiter characters between fields as might be
-  seen in a whitespace delimited file.  Instead it'll think there's lots of
-  empty fields.
++ Some whitespace-delimited files might use more than one space between
+  fields, for example if the columns are "manually" aligned:
+
+        street           nr  city
+        "Oneway Street"   1  Toontown
+
+    It won't cope with this - you'll get lots of extra empty fields.
 
 ## 5. Wishlist
 
