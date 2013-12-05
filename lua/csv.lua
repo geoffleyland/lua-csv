@@ -74,7 +74,7 @@ end
 --  what to do with them.  Mostly this is about checking we've got the columns
 --  we need and writing a nice complaint if we haven't.
 local function build_column_index_map(header, column_name_map)
-  column_index_map = {}
+  local column_index_map = {}
 
   -- Match the columns in the file to the columns in the name map
   local found = {}
@@ -126,6 +126,7 @@ local function transform_field(value, index, map, filename, line, column)
   local field = map[index]
   if field then
     if field.transform then
+      local ok
       ok, value = pcall(field.transform, value)
       if not ok then
         error(("%s:%d:%d: Couldn't read field '%s': %s"):
@@ -221,6 +222,7 @@ local function separated_values_iterator(file, parameters)
     local field_start_line = line
     local field_start_column = anchor_pos - line_start + 1
     local field_end, sep_end, this_sep
+    local tidy
 
     -- If the field is quoted, go find the other quote
     if sub(1, 1) == '"' then
