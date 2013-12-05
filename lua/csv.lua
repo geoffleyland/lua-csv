@@ -172,7 +172,7 @@ local function separated_values_iterator(file, parameters)
     local extra = anchor_pos + offset - 1 - #buffer
     if extra > 0 then
       local size = math.ceil(extra / buffer_size) * buffer_size
-      local s = file:read(buffer_size)
+      local s = file:read(size)
       if not s then return end
       buffer = buffer..s
     end
