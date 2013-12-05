@@ -50,6 +50,9 @@ apple:four,charlie:60]],
   apple = { name = "ALPHA", transform = string.lower },
   charlie = { transform = function(x) return tonumber(x) * 10 end }}})
 
+test("../test-data/blank-line.csv", [[
+this,file,ends,with,a,blank,line]])
+
 
 if errors == 0 then
   io.stdout:write("Passed\n")

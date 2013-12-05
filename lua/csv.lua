@@ -285,7 +285,9 @@ local function separated_values_iterator(file, parameters)
       elseif parameters.header and not header then
         header = fields
       else
-        coroutine.yield(fields, starts)
+        if fields[1] ~= "" or fields[2] then  -- ignore blank lines
+          coroutine.yield(fields, starts)
+        end
       end
       field_count, fields, starts = 0, {}, {}
     end
