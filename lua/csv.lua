@@ -201,7 +201,8 @@ local function separated_values_iterator(file, parameters)
   local function sub(a, b)
     truncate()
     extend(b)
-    return buffer:sub(anchor_pos + a - 1, anchor_pos + b - 1)
+    local b = b == -1 and b or anchor_pos + b - 1
+    return buffer:sub(anchor_pos + a - 1, b)
   end
 
 
@@ -237,8 +238,8 @@ local function separated_values_iterator(file, parameters)
           format(filename, field_start_line, field_start_column))
       end
       tidy = fix_quotes
-      field_end, sep_end, this_sep = find("%s*(%S)", current_pos+1)
-      if not this_sep:match(sep) then
+      field_end, sep_end, this_sep = find(" *([^ ])", current_pos+1)
+      if this_sep and not this_sep:match(sep) then
         error(("%s:%d:%d: unmatched quote"):
           format(filename, field_start_line, field_start_column))
       end
@@ -247,7 +248,7 @@ local function separated_values_iterator(file, parameters)
       tidy = trim_space
     end
 
-    -- Look for the separator or a newline.
+    -- Look for the separator or a newline or the end of the file
     field_end = (field_end or 0) - 1
 
     -- Read the field, then convert all the line endings to \n, and
