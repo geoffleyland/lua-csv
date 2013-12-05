@@ -43,7 +43,7 @@ local function build_column_name_map(columns)
       t = { transform = v.transform, default = v.default }
       if v.name then
         names = { (v.name:gsub("_+", " ")) }
-      else
+      elseif v.names then
         names = v.names
         for i, n in ipairs(names) do names[i] = n:gsub("_+", " ") end
       end
