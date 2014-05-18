@@ -54,6 +54,9 @@ controlling how the file is read:
 + `buffer_size` controls the size of the blocks the file is read in.  The
   default is 4096, which is what `pagesize` says on my system.
 
+`csv.openstring` works exactly like `csv.open` except the first argument
+is the contents of the csv file. In this case `buffer_size` is set to
+the length of the string.
 
 ## 3. Requirements
 
