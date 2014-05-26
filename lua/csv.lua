@@ -168,7 +168,7 @@ local function separated_values_iterator(file, parameters)
 
   -- Extend the buffer so we can see more
   local function extend(offset)
-    local extra = anchor_pos + offset - 1 - #buffer
+    local extra = offset - #buffer
     if extra > 0 then
       local size = math.ceil(extra / buffer_size) * buffer_size
       local s = file:read(size)
@@ -208,8 +208,7 @@ local function separated_values_iterator(file, parameters)
   -- Get a substring from the buffer, extending it if necessary
   local function sub(a, b)
     extend(b)
-    local b = b == -1 and b or anchor_pos + b - 1
-    return buffer:sub(anchor_pos + a - 1, b)
+    return buffer:sub(a, b)
   end
 
 
@@ -220,10 +219,16 @@ local function separated_values_iterator(file, parameters)
   local column_index_map
 
 
-local function advance(n)
-  anchor_pos = anchor_pos + n
-  truncate(anchor_pos)
-end
+  local function advance(n)
+    anchor_pos = anchor_pos + n
+    truncate(anchor_pos)
+  end
+
+
+  local function field_sub(a, b)
+    b = b == -1 and b or b + anchor_pos - 1
+    return sub(a + anchor_pos - 1, b)
+  end
 
 
   -- If the user hasn't specified a separator, try to work out what it is.
@@ -246,7 +251,7 @@ end
     local tidy
 
     -- If the field is quoted, go find the other quote
-    if sub(1, 1) == '"' then
+    if field_sub(1, 1) == '"' then
       advance(1)
       local current_pos = 0
       repeat
@@ -273,7 +278,7 @@ end
 
     -- Read the field, then convert all the line endings to \n, and
     -- count any embedded line endings
-    local value = sub(1, field_end)
+    local value = field_sub(1, field_end)
     value = value:gsub("\r\n", "\n"):gsub("\r", "\n")
     for nl in value:gmatch("\n()") do
       line = line + 1
@@ -318,7 +323,7 @@ end
 
     -- If we ended on a newline then count it.
     if this_sep == "\r" or this_sep == "\n" then
-      if this_sep == "\r" and sub(sep_end+1, sep_end+1) == "\n" then
+      if this_sep == "\r" and field_sub(sep_end+1, sep_end+1) == "\n" then
         sep_end = sep_end + 1
       end
       line = line + 1
