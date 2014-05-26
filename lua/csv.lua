@@ -182,24 +182,19 @@ local function separated_values_iterator(file, parameters)
   local function find(pattern, init)
     local first, last, capture
     while true do
-      first, last, capture = buffer:find(pattern, anchor_pos + init - 1)
+      first, last, capture = buffer:find(pattern, init)
       -- if we found nothing, or the last character is at the end of the
       -- buffer (and the match could potentially be longer) then read some
       -- more.
       if not first or last == #buffer then
         local s = file:read(buffer_size)
-        -- if we read nothing from the file...
-        if not s then
-          if first then
-            -- ...and last == #buffer, then the capture we found above is good.
-            return first - anchor_pos + 1, last - anchor_pos + 1, capture
-          else
-            return
-          end
-        end
+        -- if we read nothing from the file:
+        --  - and first is nil, then below we're returning nil
+        --  - and last == #buffer, then the capture we found above is good.
+        if not s then return first, last, capture end
         buffer = buffer..s
       else
-        return first - anchor_pos + 1, last - anchor_pos + 1, capture
+        return first, last, capture
       end
     end
   end
@@ -231,6 +226,13 @@ local function separated_values_iterator(file, parameters)
   end
 
 
+  local function field_find(pattern, init)
+    local f, l, c = find(pattern, init + anchor_pos - 1)
+    if not f then return end
+    return f - anchor_pos + 1, l - anchor_pos + 1, c
+  end
+
+
   -- If the user hasn't specified a separator, try to work out what it is.
   local sep = parameters.separator
   if not sep then
@@ -255,7 +257,7 @@ local function separated_values_iterator(file, parameters)
       advance(1)
       local current_pos = 0
       repeat
-        local a, b, c = find('"("?)', current_pos + 1)
+        local a, b, c = field_find('"("?)', current_pos + 1)
         current_pos = b
       until c ~= '"'
       if not current_pos then
@@ -263,13 +265,13 @@ local function separated_values_iterator(file, parameters)
           format(filename, field_start_line, field_start_column))
       end
       tidy = fix_quotes
-      field_end, sep_end, this_sep = find(" *([^ ])", current_pos+1)
+      field_end, sep_end, this_sep = field_find(" *([^ ])", current_pos+1)
       if this_sep and not this_sep:match(sep) then
         error(("%s:%d:%d: unmatched quote"):
           format(filename, field_start_line, field_start_column))
       end
     else
-      field_end, sep_end, this_sep = find(sep, 1)
+      field_end, sep_end, this_sep = field_find(sep, 1)
       tidy = trim_space
     end
 
