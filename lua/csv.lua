@@ -146,13 +146,14 @@ end
 --  Since records might be more than one line (if there's a newline in quotes)
 --  and line-endings might not be native, we read the file in chunks of
 --  `buffer_size`.
---  For some reason I do this by writing a `find` and `sub` tha
+--  For some reason I do this by writing a `find` and `sub` that work on
+--  the buffer.
 local function separated_values_iterator(file, parameters)
   local buffer_size = parameters.buffer_size or DEFAULT_BUFFER_SIZE
   local filename = parameters.filename or "<unknown>"
   local buffer = ""
   local anchor_pos = 1
-  local line, line_start = 1, 1, 1
+  local line, line_start = 1, 1
   local column_name_map = parameters.columns and
     build_column_name_map(parameters.columns)
   local column_index_map
