@@ -151,7 +151,7 @@ end
 local function separated_values_iterator(file, parameters)
   local buffer_size = parameters.buffer_size or DEFAULT_BUFFER_SIZE
   local buffer = ""
-  local anchor_pos = 1
+  local field_start = 1
   local line_start = 1
 
 
@@ -160,7 +160,7 @@ local function separated_values_iterator(file, parameters)
     if p > buffer_size then
       local remove = math.floor((p-1) / buffer_size) * buffer_size
       buffer = buffer:sub(remove + 1)
-      anchor_pos = anchor_pos - remove
+      field_start = field_start - remove
       line_start = line_start - remove
     end
   end
@@ -215,21 +215,21 @@ local function separated_values_iterator(file, parameters)
 
 
   local function advance(n)
-    anchor_pos = anchor_pos + n
-    truncate(anchor_pos)
+    field_start = field_start + n
+    truncate(field_start)
   end
 
 
   local function field_sub(a, b)
-    b = b == -1 and b or b + anchor_pos - 1
-    return sub(a + anchor_pos - 1, b)
+    b = b == -1 and b or b + field_start - 1
+    return sub(a + field_start - 1, b)
   end
 
 
   local function field_find(pattern, init)
-    local f, l, c = find(pattern, init + anchor_pos - 1)
+    local f, l, c = find(pattern, init + field_start - 1)
     if not f then return end
-    return f - anchor_pos + 1, l - anchor_pos + 1, c
+    return f - field_start + 1, l - field_start + 1, c
   end
 
 
@@ -248,7 +248,7 @@ local function separated_values_iterator(file, parameters)
 
   while true do
     local field_start_line = line
-    local field_start_column = anchor_pos - line_start + 1
+    local field_start_column = field_start - line_start + 1
     local field_end, sep_end, this_sep
     local tidy
 
@@ -284,7 +284,7 @@ local function separated_values_iterator(file, parameters)
     value = value:gsub("\r\n", "\n"):gsub("\r", "\n")
     for nl in value:gmatch("\n()") do
       line = line + 1
-      line_start = nl + anchor_pos
+      line_start = nl + field_start
     end
 
     value = tidy(value)
@@ -329,7 +329,7 @@ local function separated_values_iterator(file, parameters)
         sep_end = sep_end + 1
       end
       line = line + 1
-      line_start = anchor_pos + sep_end
+      line_start = field_start + sep_end
     end
 
     advance(sep_end)
