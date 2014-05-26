@@ -14,7 +14,7 @@
 --  (c) Copyright 2014 Kevin Martin
 --  Available under the MIT licence.  See LICENSE for more information.
 
-local DEFAULT_BUFFER_SIZE = 4096
+local DEFAULT_BUFFER_BLOCK_SIZE = 4096
 
 
 ------------------------------------------------------------------------------
@@ -142,74 +142,86 @@ end
 
 ------------------------------------------------------------------------------
 
+local file_buffer = {}
+file_buffer.__index = file_buffer
+
+function file_buffer:new(file, buffer_block_size)
+  return setmetatable({
+      file              = file,
+      buffer_block_size = buffer_block_size or DEFAULT_BUFFER_BLOCK_SIZE,
+      buffer_start      = 0,
+      buffer            = "",
+    }, file_buffer)
+end
+
+
+--- Cut the front off the buffer if we've already read it
+function file_buffer:truncate(p)
+  p = p - self.buffer_start
+  if p > self.buffer_block_size then
+    local remove = self.buffer_block_size *
+      math.floor((p-1) / self.buffer_block_size)
+    self.buffer = self.buffer:sub(remove + 1)
+    self.buffer_start = self.buffer_start + remove
+  end
+end
+
+
+--- Find something in the buffer, extending it if necessary
+function file_buffer:find(pattern, init)
+  while true do
+    local first, last, capture =
+      self.buffer:find(pattern, init - self.buffer_start)
+    -- if we found nothing, or the last character is at the end of the
+    -- buffer (and the match could potentially be longer) then read some
+    -- more.
+    if not first or last == #self.buffer then
+      local s = self.file:read(self.buffer_block_size)
+      if not s then
+        if not first then
+          return
+        else
+          return first + self.buffer_start, last + self.buffer_start, capture
+        end
+      end
+      self.buffer = self.buffer..s
+    else
+      return first + self.buffer_start, last + self.buffer_start, capture
+    end
+  end
+end
+
+
+--- Extend the buffer so we can see more
+function file_buffer:extend(offset)
+  local extra = offset - #self.buffer - self.buffer_start
+  if extra > 0 then
+    local size = self.buffer_block_size *
+      math.ceil(extra / self.buffer_block_size)
+    local s = self.file:read(size)
+    if not s then return end
+    self.buffer = self.buffer..s
+  end
+end
+
+
+--- Get a substring from the buffer, extending it if necessary
+function file_buffer:sub(a, b)
+  self:extend(b)
+  b = b == -1 and b or b - self.buffer_start
+  return self.buffer:sub(a - self.buffer_start, b)
+end
+
+
+------------------------------------------------------------------------------
+
 --- Iterate through the records in a file
 --  Since records might be more than one line (if there's a newline in quotes)
 --  and line-endings might not be native, we read the file in chunks of
---  `buffer_size`.
---  For some reason I do this by writing a `find` and `sub` that work on
---  the buffer.
+--  we read the file in chunks using a file_buffer, rather than line-by-line
+--  using io.lines.
 local function separated_values_iterator(file, parameters)
-  local buffer_size = parameters.buffer_size or DEFAULT_BUFFER_SIZE
-  local buffer = ""
-  local buffer_start = 0
-
-
-  -- Cut the front off the buffer if we've already read it
-  local function truncate(p)
-    p = p - buffer_start
-    if p > buffer_size then
-      local remove = math.floor((p-1) / buffer_size) * buffer_size
-      buffer = buffer:sub(remove + 1)
-      buffer_start = buffer_start + remove
-    end
-  end
-
-
-  -- Extend the buffer so we can see more
-  local function extend(offset)
-    local extra = offset - #buffer - buffer_start
-    if extra > 0 then
-      local size = math.ceil(extra / buffer_size) * buffer_size
-      local s = file:read(size)
-      if not s then return end
-      buffer = buffer..s
-    end
-  end
-
-
-  -- Find something in the buffer, extending it if necessary
-  local function find(pattern, init)
-    local first, last, capture
-    while true do
-      first, last, capture = buffer:find(pattern, init - buffer_start)
-      -- if we found nothing, or the last character is at the end of the
-      -- buffer (and the match could potentially be longer) then read some
-      -- more.
-      if not first or last == #buffer then
-        local s = file:read(buffer_size)
-        if not s then
-          if not first then
-            return
-          else
-            return first + buffer_start, last + buffer_start, capture
-          end
-        end
-        buffer = buffer..s
-      else
-        return first + buffer_start, last + buffer_start, capture
-      end
-    end
-  end
-
-
-  -- Get a substring from the buffer, extending it if necessary
-  local function sub(a, b)
-    extend(b)
-    b = b == -1 and b or b - buffer_start
-    return buffer:sub(a - buffer_start, b)
-  end
-
-
+  local buffer = file_buffer:new(file, parameters.buffer_size)
   local filename = parameters.filename or "<unknown>"
   local field_start = 1
   local line_start = 1
@@ -221,18 +233,18 @@ local function separated_values_iterator(file, parameters)
 
   local function advance(n)
     field_start = field_start + n
-    truncate(field_start)
+    buffer:truncate(field_start)
   end
 
 
   local function field_sub(a, b)
     b = b == -1 and b or b + field_start - 1
-    return sub(a + field_start - 1, b)
+    return buffer:sub(a + field_start - 1, b)
   end
 
 
   local function field_find(pattern, init)
-    local f, l, c = find(pattern, init + field_start - 1)
+    local f, l, c = buffer:find(pattern, init + field_start - 1)
     if not f then return end
     return f - field_start + 1, l - field_start + 1, c
   end
@@ -242,7 +254,7 @@ local function separated_values_iterator(file, parameters)
   local sep = parameters.separator
   if not sep then
     local _
-    _, _, sep = find("([,\t])", 1)
+    _, _, sep = buffer:find("([,\t])", 1)
   end
   sep = "(["..sep.."\n\r])"
 
