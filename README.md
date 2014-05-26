@@ -52,7 +52,8 @@ controlling how the file is read:
     file formats and spelling mistakes.
 
 + `buffer_size` controls the size of the blocks the file is read in.  The
-  default is 4096, which is what `pagesize` says on my system.
+  default is 1MB.  It used to be 4096 bytes which is what `pagesize` says on
+  my system, but that seems kind of small.
 
 `csv.openstring` works exactly like `csv.open` except the first argument
 is the contents of the csv file. In this case `buffer_size` is set to

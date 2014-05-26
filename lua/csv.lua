@@ -10,11 +10,11 @@
 --  Of course, for such a simple format, CSV is horribly complicated, so it
 --  likely gets something wrong.
 
---  (c) Copyright 2013 Incremental IP Limited.
+--  (c) Copyright 2013-2014 Incremental IP Limited.
 --  (c) Copyright 2014 Kevin Martin
 --  Available under the MIT licence.  See LICENSE for more information.
 
-local DEFAULT_BUFFER_BLOCK_SIZE = 4096
+local DEFAULT_BUFFER_BLOCK_SIZE = 1024 * 1024
 
 
 ------------------------------------------------------------------------------
