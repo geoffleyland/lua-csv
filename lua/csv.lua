@@ -179,10 +179,10 @@ local function separated_values_iterator(file, parameters)
 
 
   -- Find something in the buffer, extending it if necessary
-  local function find(pattern, offset)
+  local function find(pattern, init)
     local first, last, capture
     while true do
-      first, last, capture = buffer:find(pattern, anchor_pos + offset - 1)
+      first, last, capture = buffer:find(pattern, anchor_pos + init - 1)
       -- if we found nothing, or the last character is at the end of the
       -- buffer (and the match could potentially be longer) then read some
       -- more.
