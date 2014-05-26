@@ -29,16 +29,20 @@ local function testhandle(handle, correct_result)
 end
 
 local function test(filename, correct_result, parameters)
-  local f = csv.open(filename, parameters)
-  local fileok = testhandle(f, correct_result)
+  parameters = parameters or {}
+  for i = 1, 16 do
+    parameters.buffer_size = i
+    local f = csv.open(filename, parameters)
+    local fileok = testhandle(f, correct_result)
 
-  if fileok then
-    f = io.open(filename, "r")
-    local data = f:read("*a")
-    f:close()
+    if fileok then
+      f = io.open(filename, "r")
+      local data = f:read("*a")
+      f:close()
 
-    f = csv.openstring(data, parameters)
-    testhandle(f, correct_result)
+      f = csv.openstring(data, parameters)
+      testhandle(f, correct_result)
+    end
   end
 end
 
@@ -50,7 +54,7 @@ newline!
 embedded
 newline,embedded
 newline,embedded
-newline!]], { buffer_size=4})
+newline!]])
 
 test("../test-data/embedded-quotes.csv", [[
 embedded "quotes",embedded "quotes",embedded "quotes"!
@@ -58,18 +62,17 @@ embedded "quotes",embedded "quotes",embedded "quotes"!]])
 
 test("../test-data/header.csv", [[
 alpha:ONE,bravo:two,charlie:3!
-alpha:four,bravo:five,charlie:6!]], {header=true, buffer_size=5})
+alpha:four,bravo:five,charlie:6!]], {header=true})
 
 test("../test-data/header.csv", [[
 apple:one,charlie:30!
 apple:four,charlie:60!]],
-{ buffer_size = 7,
-  columns = {
+{ columns = {
   apple = { name = "ALPHA", transform = string.lower },
   charlie = { transform = function(x) return tonumber(x) * 10 end }}})
 
 test("../test-data/blank-line.csv", [[
-this,file,ends,with,a,blank,line!]], { buffer_size=11 })
+this,file,ends,with,a,blank,line!]])
 
 
 if errors == 0 then

@@ -184,9 +184,15 @@ local function separated_values_iterator(file, parameters)
     local first, last, capture
     while true do
       first, last, capture = buffer:find(pattern, anchor_pos + offset - 1)
-      if not first then
+      -- if we found nothing, or the last character is at the end of the
+      -- buffer (and the match could potentially be longer) then read some
+      -- more.
+      if not first or last == #buffer then
         local s = file:read(buffer_size)
-        if not s then return end
+        -- if we read nothing from the file:
+        --  - and first is nil, then we found nothing.  This will return nil.
+        --  - and last == #buffer, then the capture we found above is good.
+        if not s then return first, last, capture end
         buffer = buffer..s
       else
         return first - anchor_pos + 1, last - anchor_pos + 1, capture
