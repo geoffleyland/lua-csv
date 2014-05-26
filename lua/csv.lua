@@ -32,11 +32,14 @@ end
 
 ------------------------------------------------------------------------------
 
+local column_map = {}
+column_map.__index = column_map
+
 --- Parse a list of columns.
 --  The main job here is normalising column names and dealing with columns
 --  for which we have more than one possible name in the header.
-local function build_column_name_map(columns)
-  local column_name_map = {}
+function column_map:new(columns, filename)
+  local name_map = {}
   for n, v in pairs(columns) do
     local names
     local t
@@ -62,11 +65,11 @@ local function build_column_name_map(columns)
 
     t.name = n
     for _, n in ipairs(names) do
-      column_name_map[n:lower()] = t
+      name_map[n:lower()] = t
     end
   end
 
-  return column_name_map
+  return setmetatable({ name_map = name_map, filename = filename }, column_map)
 end
 
 
@@ -74,23 +77,23 @@ end
 --  Once we've read the header, work out which columns we're interested in and
 --  what to do with them.  Mostly this is about checking we've got the columns
 --  we need and writing a nice complaint if we haven't.
-local function build_column_index_map(header, column_name_map)
-  local column_index_map = {}
+function column_map:read_header(header)
+  local index_map = {}
 
   -- Match the columns in the file to the columns in the name map
   local found = {}
   for i, word in ipairs(header) do
     word = word:lower():gsub("[^%w%d]+", " "):gsub("^ *(.-) *$", "%1")
-    local r = column_name_map[word]
+    local r = self.name_map[word]
     if r then
-      column_index_map[i] = r
+      index_map[i] = r
       found[r.name] = true
     end
   end
 
   -- check we found all the columns we need
   local not_found = {}
-  for name, r in pairs(column_name_map) do
+  for name, r in pairs(self.name_map) do
     if not found[r.name] then
       local nf = not_found[r.name]
       if nf then
@@ -119,19 +122,19 @@ local function build_column_index_map(header, column_name_map)
     error(table.concat(problems, "\n"), 0)
   end
 
-  return column_index_map
+  self.index_map = index_map
 end
 
 
-local function transform_field(value, index, map, filename, line, column)
-  local field = map[index]
+function column_map:transform(value, index, line, column)
+  local field = self.index_map[index]
   if field then
     if field.transform then
       local ok
       ok, value = pcall(field.transform, value)
       if not ok then
         error(("%s:%d:%d: Couldn't read field '%s': %s"):
-              format(filename or "<unknown>", line, column,
+              format(self.filename or "<unknown>", line, column,
               field.name, value))
       end
     end
@@ -273,7 +276,7 @@ local function separated_values_iterator(buffer, parameters)
   local line_start = 1
   local line = 1
   local field_count, fields, starts = 0, {}, {}
-  local column_index_map, header
+  local header, header_read
 
   while true do
     local field_start_line = line
@@ -321,9 +324,9 @@ local function separated_values_iterator(buffer, parameters)
 
     -- Insert the value into the table for this "line"
     local key
-    if column_index_map then
-      value, key = transform_field(value, field_count, column_index_map,
-        parameters.filename, field_start_line, field_start_column)
+    if parameters.column_map and header_read then
+      value, key = parameters.column_map:transform(value, field_count,
+        field_start_line, field_start_column)
     elseif header then
       key = header[field_count]
     else
@@ -336,11 +339,12 @@ local function separated_values_iterator(buffer, parameters)
 
     -- if we ended on a newline then yield the fields on this line.
     if not this_sep or this_sep == "\r" or this_sep == "\n" then
-      if parameters.column_name_map and not column_index_map then
-        column_index_map =
-          build_column_index_map(fields, parameters.column_name_map)
+      if parameters.column_map and not header_read then
+        parameters.column_map:read_header(fields)
+        header_read = true
       elseif parameters.header and not header then
         header = fields
+        header_read = true
       else
         local k, v = next(fields)
         if v ~= "" or field_count > 1 then  -- ignore blank lines
@@ -388,8 +392,8 @@ buffer_mt.__index = buffer_mt
 
 local function use(buffer, parameters)
   parameters.filename = parameters.filename or "<unknown>"
-  parameters.column_name_map = parameters.columns and
-    build_column_name_map(parameters.columns)
+  parameters.column_map = parameters.columns and
+    column_map:new(parameters.columns, parameters.filename)
   local f = { buffer = buffer, parameters = parameters }
   return setmetatable(f, buffer_mt)
 end
