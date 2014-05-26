@@ -151,24 +151,23 @@ end
 local function separated_values_iterator(file, parameters)
   local buffer_size = parameters.buffer_size or DEFAULT_BUFFER_SIZE
   local buffer = ""
-  local field_start = 1
-  local line_start = 1
+  local buffer_start = 0
 
 
   -- Cut the front off the buffer if we've already read it
   local function truncate(p)
+    p = p - buffer_start
     if p > buffer_size then
       local remove = math.floor((p-1) / buffer_size) * buffer_size
       buffer = buffer:sub(remove + 1)
-      field_start = field_start - remove
-      line_start = line_start - remove
+      buffer_start = buffer_start + remove
     end
   end
 
 
   -- Extend the buffer so we can see more
   local function extend(offset)
-    local extra = offset - #buffer
+    local extra = offset - #buffer - buffer_start
     if extra > 0 then
       local size = math.ceil(extra / buffer_size) * buffer_size
       local s = file:read(size)
@@ -182,19 +181,22 @@ local function separated_values_iterator(file, parameters)
   local function find(pattern, init)
     local first, last, capture
     while true do
-      first, last, capture = buffer:find(pattern, init)
+      first, last, capture = buffer:find(pattern, init - buffer_start)
       -- if we found nothing, or the last character is at the end of the
       -- buffer (and the match could potentially be longer) then read some
       -- more.
       if not first or last == #buffer then
         local s = file:read(buffer_size)
-        -- if we read nothing from the file:
-        --  - and first is nil, then below we're returning nil
-        --  - and last == #buffer, then the capture we found above is good.
-        if not s then return first, last, capture end
+        if not s then
+          if not first then
+            return
+          else
+            return first + buffer_start, last + buffer_start, capture
+          end
+        end
         buffer = buffer..s
       else
-        return first, last, capture
+        return first + buffer_start, last + buffer_start, capture
       end
     end
   end
@@ -203,11 +205,14 @@ local function separated_values_iterator(file, parameters)
   -- Get a substring from the buffer, extending it if necessary
   local function sub(a, b)
     extend(b)
-    return buffer:sub(a, b)
+    b = b == -1 and b or b - buffer_start
+    return buffer:sub(a - buffer_start, b)
   end
 
 
   local filename = parameters.filename or "<unknown>"
+  local field_start = 1
+  local line_start = 1
   local line = 1
   local column_name_map = parameters.columns and
     build_column_name_map(parameters.columns)
