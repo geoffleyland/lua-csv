@@ -50,7 +50,7 @@ newline!
 embedded
 newline,embedded
 newline,embedded
-newline!]])
+newline!]], { buffer_size=4})
 
 test("../test-data/embedded-quotes.csv", [[
 embedded "quotes",embedded "quotes",embedded "quotes"!
@@ -58,17 +58,18 @@ embedded "quotes",embedded "quotes",embedded "quotes"!]])
 
 test("../test-data/header.csv", [[
 alpha:ONE,bravo:two,charlie:3!
-alpha:four,bravo:five,charlie:6!]], {header=true})
+alpha:four,bravo:five,charlie:6!]], {header=true, buffer_size=5})
 
 test("../test-data/header.csv", [[
 apple:one,charlie:30!
 apple:four,charlie:60!]],
-{ columns = {
+{ buffer_size = 7,
+  columns = {
   apple = { name = "ALPHA", transform = string.lower },
   charlie = { transform = function(x) return tonumber(x) * 10 end }}})
 
 test("../test-data/blank-line.csv", [[
-this,file,ends,with,a,blank,line!]])
+this,file,ends,with,a,blank,line!]], { buffer_size=11 })
 
 
 if errors == 0 then

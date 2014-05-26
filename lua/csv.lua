@@ -158,7 +158,7 @@ local function separated_values_iterator(file, parameters)
   -- Cut the front off the buffer if we've already read it
   local function truncate()
     if anchor_pos > buffer_size then
-      local remove = math.floor(anchor_pos / buffer_size) * buffer_size
+      local remove = math.floor((anchor_pos-1) / buffer_size) * buffer_size
       buffer = buffer:sub(remove + 1)
       anchor_pos = anchor_pos - remove
       line_start = line_start - remove
