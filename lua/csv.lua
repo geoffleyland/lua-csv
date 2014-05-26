@@ -156,9 +156,9 @@ local function separated_values_iterator(file, parameters)
 
 
   -- Cut the front off the buffer if we've already read it
-  local function truncate()
-    if anchor_pos > buffer_size then
-      local remove = math.floor((anchor_pos-1) / buffer_size) * buffer_size
+  local function truncate(p)
+    if p > buffer_size then
+      local remove = math.floor((p-1) / buffer_size) * buffer_size
       buffer = buffer:sub(remove + 1)
       anchor_pos = anchor_pos - remove
       line_start = line_start - remove
@@ -180,7 +180,6 @@ local function separated_values_iterator(file, parameters)
 
   -- Find something in the buffer, extending it if necessary
   local function find(pattern, offset)
-    truncate()
     local first, last, capture
     while true do
       first, last, capture = buffer:find(pattern, anchor_pos + offset - 1)
@@ -203,7 +202,6 @@ local function separated_values_iterator(file, parameters)
 
   -- Get a substring from the buffer, extending it if necessary
   local function sub(a, b)
-    truncate()
     extend(b)
     local b = b == -1 and b or anchor_pos + b - 1
     return buffer:sub(anchor_pos + a - 1, b)
@@ -215,6 +213,12 @@ local function separated_values_iterator(file, parameters)
   local column_name_map = parameters.columns and
     build_column_name_map(parameters.columns)
   local column_index_map
+
+
+local function advance(n)
+  anchor_pos = anchor_pos + n
+  truncate(anchor_pos)
+end
 
 
   -- If the user hasn't specified a separator, try to work out what it is.
@@ -238,7 +242,7 @@ local function separated_values_iterator(file, parameters)
 
     -- If the field is quoted, go find the other quote
     if sub(1, 1) == '"' then
-      anchor_pos = anchor_pos + 1
+      advance(1)
       local current_pos = 0
       repeat
         local a, b, c = find('"("?)', current_pos + 1)
@@ -316,7 +320,7 @@ local function separated_values_iterator(file, parameters)
       line_start = anchor_pos + sep_end
     end
 
-    anchor_pos = anchor_pos + sep_end
+    advance(sep_end)
   end
 end
 
