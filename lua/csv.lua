@@ -11,9 +11,10 @@
 --  likely gets something wrong.
 
 --  (c) Copyright 2013 Incremental IP Limited.
+--  (c) Copyright 2014 Kevin Martin
 --  Available under the MIT licence.  See LICENSE for more information.
 
-local DEFAULT_BUFFER_SIZE = 1024
+local DEFAULT_BUFFER_SIZE = 4096
 
 
 ------------------------------------------------------------------------------
@@ -322,6 +323,9 @@ local file_mt =
   close = function(t)
       t.file:close()
     end,
+  name = function(t)
+      return t.parameters.filename
+    end,
 }
 file_mt.__index = file_mt
 
@@ -349,6 +353,52 @@ end
 
 ------------------------------------------------------------------------------
 
-return { open = open, use = use }
+local stringfh_mt =
+{
+  read = function(self, bytes)
+      if not self._string then return nil end
+
+      local read_rv
+      read_rv, self._string =
+       self._string:sub(1, bytes), self._string:sub(bytes+1)
+
+      if #self._string == 0 then
+        self._string = nil
+      end
+
+      return read_rv
+    end,
+  close = function()
+    end
+}
+stringfh_mt.__index = stringfh_mt
+
+--- Open a string for reading as a delimited file
+--  @return a file object
+local function openstring(
+  filecontents,     -- string: The contents of the delimited file
+  parameters)       -- ?table: parameters controlling reading the file.
+                    -- See README.md
+
+  parameters = parameters or {}
+
+  local function makename()
+    local t = {}
+    t[#t+1] = "<(String) "
+    t[#t+1] = (filecontents:gmatch("[^\n]+")() or ""):sub(1,15)
+    if #t[#t] > 14 then t[#t+1] = "..." end
+    t[#t+1] = " >"
+    return table.concat(t)
+  end
+
+  parameters.filename = parameters.filename or makename()
+  parameters.buffer_size = parameters.buffer_size or #filecontents
+  local fileh = setmetatable({_string = filecontents}, stringfh_mt)
+  return use(fileh, parameters)
+end
+
+------------------------------------------------------------------------------
+
+return { open = open, openstring = openstring, use = use }
 
 ------------------------------------------------------------------------------

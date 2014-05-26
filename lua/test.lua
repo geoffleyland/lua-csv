@@ -3,10 +3,9 @@ local csv = require"csv"
 
 local errors = 0
 
-local function test(filename, correct_result, parameters)
+local function testhandle(handle, correct_result)
   local result = {}
-  local f = csv.open(filename, parameters)
-  for r in f:lines() do
+  for r in handle:lines() do
     if not r[1] then
       local r2 = {}
       for k, v in pairs(r) do r2[#r2+1] = k..":"..tostring(v) end
@@ -15,15 +14,33 @@ local function test(filename, correct_result, parameters)
     end
     result[#result+1] = table.concat(r, ",")
   end
+
+  handle:close()
+
   result = table.concat(result, "\n")
   if result ~= correct_result then
     io.stderr:write(
       ("Error reading '%s':\nExpected output:\n%s\n\nActual output:\n%s\n\n"):
-      format(filename, correct_result, result))
+      format(handle:name(), correct_result, result))
     errors = errors + 1
+	return false
   end
+  return true
 end
 
+local function test(filename, correct_result, parameters)
+  local f = csv.open(filename, parameters)
+  local fileok = testhandle(f, correct_result)
+
+  if fileok then
+    f = io.open(filename, "r")
+    local data = f:read("*a")
+    f:close()
+
+    f = csv.openstring(data, parameters)
+    testhandle(f, correct_result)
+  end
+end
 
 test("../test-data/embedded-newlines.csv", [[
 embedded
