@@ -188,10 +188,15 @@ local function separated_values_iterator(file, parameters)
       -- more.
       if not first or last == #buffer then
         local s = file:read(buffer_size)
-        -- if we read nothing from the file:
-        --  - and first is nil, then we found nothing.  This will return nil.
-        --  - and last == #buffer, then the capture we found above is good.
-        if not s then return first, last, capture end
+        -- if we read nothing from the file...
+        if not s then
+          if first then
+            -- ...and last == #buffer, then the capture we found above is good.
+            return first - anchor_pos + 1, last - anchor_pos + 1, capture
+          else
+            return
+          end
+        end
         buffer = buffer..s
       else
         return first - anchor_pos + 1, last - anchor_pos + 1, capture
