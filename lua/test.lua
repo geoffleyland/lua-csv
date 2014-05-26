@@ -17,13 +17,13 @@ local function testhandle(handle, correct_result)
 
   handle:close()
 
-  result = table.concat(result, "\n")
+  result = table.concat(result, "!\n").."!"
   if result ~= correct_result then
     io.stderr:write(
       ("Error reading '%s':\nExpected output:\n%s\n\nActual output:\n%s\n\n"):
       format(handle:name(), correct_result, result))
     errors = errors + 1
-	return false
+  return false
   end
   return true
 end
@@ -46,29 +46,29 @@ test("../test-data/embedded-newlines.csv", [[
 embedded
 newline,embedded
 newline,embedded
-newline
+newline!
 embedded
 newline,embedded
 newline,embedded
-newline]])
+newline!]])
 
 test("../test-data/embedded-quotes.csv", [[
-embedded "quotes",embedded "quotes",embedded "quotes"
-embedded "quotes",embedded "quotes",embedded "quotes"]])
+embedded "quotes",embedded "quotes",embedded "quotes"!
+embedded "quotes",embedded "quotes",embedded "quotes"!]])
 
 test("../test-data/header.csv", [[
-alpha:ONE,bravo:two,charlie:3
-alpha:four,bravo:five,charlie:6]], {header=true})
+alpha:ONE,bravo:two,charlie:3!
+alpha:four,bravo:five,charlie:6!]], {header=true})
 
 test("../test-data/header.csv", [[
-apple:one,charlie:30
-apple:four,charlie:60]],
+apple:one,charlie:30!
+apple:four,charlie:60!]],
 { columns = {
   apple = { name = "ALPHA", transform = string.lower },
   charlie = { transform = function(x) return tonumber(x) * 10 end }}})
 
 test("../test-data/blank-line.csv", [[
-this,file,ends,with,a,blank,line]])
+this,file,ends,with,a,blank,line!]])
 
 
 if errors == 0 then
