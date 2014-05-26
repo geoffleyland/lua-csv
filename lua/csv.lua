@@ -222,19 +222,25 @@ end
 
 ------------------------------------------------------------------------------
 
+--- If the user hasn't specified a separator, try to work out what it is.
+local function guess_separator(buffer, parameters)
+  local sep = parameters.separator
+  if not sep then
+    local _
+    _, _, sep = buffer:find("([,\t])", 1)
+  end
+  sep = "(["..sep.."\n\r])"
+  return sep
+end
+
+
 --- Iterate through the records in a file
 --  Since records might be more than one line (if there's a newline in quotes)
 --  and line-endings might not be native, we read the file in chunks of
 --  we read the file in chunks using a file_buffer, rather than line-by-line
 --  using io.lines.
 local function separated_values_iterator(buffer, parameters)
-  local filename = parameters.filename or "<unknown>"
   local field_start = 1
-  local line_start = 1
-  local line = 1
-  local column_name_map = parameters.columns and
-    build_column_name_map(parameters.columns)
-  local column_index_map
 
   local advance
   if buffer.truncate then
@@ -262,18 +268,12 @@ local function separated_values_iterator(buffer, parameters)
   end
 
 
-  -- If the user hasn't specified a separator, try to work out what it is.
-  local sep = parameters.separator
-  if not sep then
-    local _
-    _, _, sep = buffer:find("([,\t])", 1)
-  end
-  sep = "(["..sep.."\n\r])"
-
-
   -- Start reading the file
+  local sep = guess_separator(buffer, parameters)
+  local line_start = 1
+  local line = 1
   local field_count, fields, starts = 0, {}, {}
-  local header
+  local column_index_map, header
 
   while true do
     local field_start_line = line
@@ -291,13 +291,13 @@ local function separated_values_iterator(buffer, parameters)
       until c ~= '"'
       if not current_pos then
         error(("%s:%d:%d: unmatched quote"):
-          format(filename, field_start_line, field_start_column))
+          format(parameters.filename, field_start_line, field_start_column))
       end
       tidy = fix_quotes
       field_end, sep_end, this_sep = field_find(" *([^ ])", current_pos+1)
       if this_sep and not this_sep:match(sep) then
         error(("%s:%d:%d: unmatched quote"):
-          format(filename, field_start_line, field_start_column))
+          format(parameters.filename, field_start_line, field_start_column))
       end
     else
       field_end, sep_end, this_sep = field_find(sep, 1)
@@ -323,7 +323,7 @@ local function separated_values_iterator(buffer, parameters)
     local key
     if column_index_map then
       value, key = transform_field(value, field_count, column_index_map,
-        filename, field_start_line, field_start_column)
+        parameters.filename, field_start_line, field_start_column)
     elseif header then
       key = header[field_count]
     else
@@ -336,8 +336,9 @@ local function separated_values_iterator(buffer, parameters)
 
     -- if we ended on a newline then yield the fields on this line.
     if not this_sep or this_sep == "\r" or this_sep == "\n" then
-      if column_name_map and not column_index_map then
-        column_index_map = build_column_index_map(fields, column_name_map)
+      if parameters.column_name_map and not column_index_map then
+        column_index_map =
+          build_column_index_map(fields, parameters.column_name_map)
       elseif parameters.header and not header then
         header = fields
       else
@@ -386,6 +387,9 @@ buffer_mt.__index = buffer_mt
 
 
 local function use(buffer, parameters)
+  parameters.filename = parameters.filename or "<unknown>"
+  parameters.column_name_map = parameters.columns and
+    build_column_name_map(parameters.columns)
   local f = { buffer = buffer, parameters = parameters }
   return setmetatable(f, buffer_mt)
 end
