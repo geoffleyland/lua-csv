@@ -38,7 +38,7 @@ column_map.__index = column_map
 --- Parse a list of columns.
 --  The main job here is normalising column names and dealing with columns
 --  for which we have more than one possible name in the header.
-function column_map:new(columns, filename)
+function column_map:new(columns)
   local name_map = {}
   for n, v in pairs(columns) do
     local names
@@ -69,7 +69,7 @@ function column_map:new(columns, filename)
     end
   end
 
-  return setmetatable({ name_map = name_map, filename = filename }, column_map)
+  return setmetatable({ name_map = name_map }, column_map)
 end
 
 
@@ -126,16 +126,14 @@ function column_map:read_header(header)
 end
 
 
-function column_map:transform(value, index, line, column)
+function column_map:transform(value, index)
   local field = self.index_map[index]
   if field then
     if field.transform then
       local ok
       ok, value = pcall(field.transform, value)
       if not ok then
-        error(("%s:%d:%d: Couldn't read field '%s': %s"):
-              format(self.filename or "<unknown>", line, column,
-              field.name, value))
+        error(("Error reading field '%s': %s"):format(field.name, value), 0)
       end
     end
     return value or field.default, field.name
@@ -277,12 +275,21 @@ local function separated_values_iterator(buffer, parameters)
   local line = 1
   local field_count, fields, starts = 0, {}, {}
   local header, header_read
+  local field_start_line, field_start_column
+
+
+  local function problem(message)
+    error(("%s:%d:%d: %s"):
+      format(parameters.filename, field_start_line, field_start_column,
+             message), 0)
+  end
+
 
   while true do
-    local field_start_line = line
-    local field_start_column = field_start - line_start + 1
     local field_end, sep_end, this_sep
     local tidy
+    field_start_line = line
+    field_start_column = field_start - line_start + 1
 
     -- If the field is quoted, go find the other quote
     if field_sub(1, 1) == '"' then
@@ -292,16 +299,10 @@ local function separated_values_iterator(buffer, parameters)
         local a, b, c = field_find('"("?)', current_pos + 1)
         current_pos = b
       until c ~= '"'
-      if not current_pos then
-        error(("%s:%d:%d: unmatched quote"):
-          format(parameters.filename, field_start_line, field_start_column))
-      end
+      if not current_pos then problem("unmatched quote") end
       tidy = fix_quotes
       field_end, sep_end, this_sep = field_find(" *([^ ])", current_pos+1)
-      if this_sep and not this_sep:match(sep) then
-        error(("%s:%d:%d: unmatched quote"):
-          format(parameters.filename, field_start_line, field_start_column))
-      end
+      if this_sep and not this_sep:match(sep) then problem("unmatched quote") end
     else
       field_end, sep_end, this_sep = field_find(sep, 1)
       tidy = trim_space
@@ -325,8 +326,11 @@ local function separated_values_iterator(buffer, parameters)
     -- Insert the value into the table for this "line"
     local key
     if parameters.column_map and header_read then
-      value, key = parameters.column_map:transform(value, field_count,
-        field_start_line, field_start_column)
+      parameters.column_map:transform(value, field_count)
+      local ok
+      ok, value, key = pcall(parameters.column_map.transform,
+        parameters.column_map, value, field_count)
+      if not ok then problem(value) end
     elseif header then
       key = header[field_count]
     else
@@ -393,7 +397,7 @@ buffer_mt.__index = buffer_mt
 local function use(buffer, parameters)
   parameters.filename = parameters.filename or "<unknown>"
   parameters.column_map = parameters.columns and
-    column_map:new(parameters.columns, parameters.filename)
+    column_map:new(parameters.columns)
   local f = { buffer = buffer, parameters = parameters }
   return setmetatable(f, buffer_mt)
 end
