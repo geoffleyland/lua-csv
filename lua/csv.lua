@@ -213,6 +213,13 @@ function file_buffer:sub(a, b)
 end
 
 
+--- Close a file buffer
+function file_buffer:close()
+  self.file:close()
+  self.file = nil
+end
+
+
 ------------------------------------------------------------------------------
 
 --- Iterate through the records in a file
@@ -220,8 +227,7 @@ end
 --  and line-endings might not be native, we read the file in chunks of
 --  we read the file in chunks using a file_buffer, rather than line-by-line
 --  using io.lines.
-local function separated_values_iterator(file, parameters)
-  local buffer = file_buffer:new(file, parameters.buffer_size)
+local function separated_values_iterator(buffer, parameters)
   local filename = parameters.filename or "<unknown>"
   local field_start = 1
   local line_start = 1
@@ -230,10 +236,16 @@ local function separated_values_iterator(file, parameters)
     build_column_name_map(parameters.columns)
   local column_index_map
 
-
-  local function advance(n)
-    field_start = field_start + n
-    buffer:truncate(field_start)
+  local advance
+  if buffer.truncate then
+    advance = function(n)
+      field_start = field_start + n
+      buffer:truncate(field_start)
+    end
+  else
+    advance = function(n)
+      field_start = field_start + n
+    end
   end
 
 
@@ -356,28 +368,30 @@ end
 
 ------------------------------------------------------------------------------
 
-local file_mt =
+local buffer_mt =
 {
   lines = function(t)
       return coroutine.wrap(function()
-          separated_values_iterator(t.file, t.parameters)
+          separated_values_iterator(t.buffer, t.parameters)
         end)
     end,
   close = function(t)
-      t.file:close()
+      if t.buffer.close then t.buffer:close() end
     end,
   name = function(t)
       return t.parameters.filename
     end,
 }
-file_mt.__index = file_mt
+buffer_mt.__index = buffer_mt
 
 
-local function use(file, parameters)
-  local f = { file = file, parameters = parameters }
-  return setmetatable(f, file_mt)
+local function use(buffer, parameters)
+  local f = { buffer = buffer, parameters = parameters }
+  return setmetatable(f, buffer_mt)
 end
 
+
+------------------------------------------------------------------------------
 
 --- Open a file for reading as a delimited file
 --  @return a file object
@@ -390,31 +404,21 @@ local function open(
 
   parameters = parameters or {}
   parameters.filename = filename
-  return use(file, parameters)
+  return use(file_buffer:new(file), parameters)
 end
 
 
 ------------------------------------------------------------------------------
 
-local stringfh_mt =
-{
-  read = function(self, bytes)
-      if not self._string then return nil end
+local function makename(s)
+  local t = {}
+  t[#t+1] = "<(String) "
+  t[#t+1] = (s:gmatch("[^\n]+")() or ""):sub(1,15)
+  if #t[#t] > 14 then t[#t+1] = "..." end
+  t[#t+1] = " >"
+  return table.concat(t)
+end
 
-      local read_rv
-      read_rv, self._string =
-       self._string:sub(1, bytes), self._string:sub(bytes+1)
-
-      if #self._string == 0 then
-        self._string = nil
-      end
-
-      return read_rv
-    end,
-  close = function()
-    end
-}
-stringfh_mt.__index = stringfh_mt
 
 --- Open a string for reading as a delimited file
 --  @return a file object
@@ -425,20 +429,12 @@ local function openstring(
 
   parameters = parameters or {}
 
-  local function makename()
-    local t = {}
-    t[#t+1] = "<(String) "
-    t[#t+1] = (filecontents:gmatch("[^\n]+")() or ""):sub(1,15)
-    if #t[#t] > 14 then t[#t+1] = "..." end
-    t[#t+1] = " >"
-    return table.concat(t)
-  end
 
-  parameters.filename = parameters.filename or makename()
+  parameters.filename = parameters.filename or makename(s)
   parameters.buffer_size = parameters.buffer_size or #filecontents
-  local fileh = setmetatable({_string = filecontents}, stringfh_mt)
-  return use(fileh, parameters)
+  return use(filecontents, parameters)
 end
+
 
 ------------------------------------------------------------------------------
 
