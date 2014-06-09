@@ -263,9 +263,20 @@ local function separated_values_iterator(buffer, parameters)
 
 
   local function field_find(pattern, init)
+    init = init or 1
     local f, l, c = buffer:find(pattern, init + field_start - 1)
     if not f then return end
     return f - field_start + 1, l - field_start + 1, c
+  end
+
+
+  -- Is there some kind of Unicode BOM here?
+  if field_find("^\239\187\191") then  -- UTF-8
+    advance(3)
+  elseif field_find("^\254\255") then      -- UTF-16 big-endian
+    advance(2)
+  elseif field_find("^\255\254") then      -- UTF-16 little-endian
+    advance(2)
   end
 
 
