@@ -337,7 +337,6 @@ local function separated_values_iterator(buffer, parameters)
     -- Insert the value into the table for this "line"
     local key
     if parameters.column_map and header_read then
-      parameters.column_map:transform(value, field_count)
       local ok
       ok, value, key = pcall(parameters.column_map.transform,
         parameters.column_map, value, field_count)
