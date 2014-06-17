@@ -82,14 +82,18 @@ function column_map:read_header(header)
 
   -- Match the columns in the file to the columns in the name map
   local found = {}
+  local found_any
   for i, word in ipairs(header) do
     word = word:lower():gsub("[^%w%d]+", " "):gsub("^ *(.-) *$", "%1")
     local r = self.name_map[word]
     if r then
       index_map[i] = r
       found[r.name] = true
+      found_any = true
     end
   end
+
+  if not found_any then return end
 
   -- check we found all the columns we need
   local not_found = {}
@@ -123,6 +127,7 @@ function column_map:read_header(header)
   end
 
   self.index_map = index_map
+  return true
 end
 
 
@@ -284,7 +289,7 @@ local function separated_values_iterator(buffer, parameters)
   local sep = guess_separator(buffer, parameters)
   local line_start = 1
   local line = 1
-  local field_count, fields, starts = 0, {}, {}
+  local field_count, fields, starts, nonblanks = 0, {}, {}
   local header, header_read
   local field_start_line, field_start_column
 
@@ -332,6 +337,7 @@ local function separated_values_iterator(buffer, parameters)
     end
 
     value = tidy(value)
+    if #value > 0 then nonblanks = true end
     field_count = field_count + 1
 
     -- Insert the value into the table for this "line"
@@ -354,18 +360,18 @@ local function separated_values_iterator(buffer, parameters)
     -- if we ended on a newline then yield the fields on this line.
     if not this_sep or this_sep == "\r" or this_sep == "\n" then
       if parameters.column_map and not header_read then
-        parameters.column_map:read_header(fields)
-        header_read = true
+        header_read = parameters.column_map:read_header(fields)
       elseif parameters.header and not header then
-        header = fields
-        header_read = true
+        if nonblanks or field_count > 1 then -- ignore blank lines
+          header = fields
+          header_read = true
+        end
       else
-        local k, v = next(fields)
-        if v ~= "" or field_count > 1 then  -- ignore blank lines
+        if nonblanks or field_count > 1 then -- ignore blank lines
           coroutine.yield(fields, starts)
         end
       end
-      field_count, fields, starts = 0, {}, {}
+      field_count, fields, starts, nonblanks = 0, {}, {}
     end
 
     -- If we *really* didn't find a separator then we're done.
