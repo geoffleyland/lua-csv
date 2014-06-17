@@ -46,10 +46,10 @@ function column_map:new(columns)
     if type(v) == "table" then
       t = { transform = v.transform, default = v.default }
       if v.name then
-        names = { (v.name:gsub("_+", " ")) }
+        names = { (v.name:gsub("[^%w%d]+", " ")) }
       elseif v.names then
         names = v.names
-        for i, n in ipairs(names) do names[i] = n:gsub("_+", " ") end
+        for i, n in ipairs(names) do names[i] = n:gsub("[^%w%d]+", " ") end
       end
     else
       if type(v) == "function" then
@@ -60,7 +60,7 @@ function column_map:new(columns)
     end
 
     if not names then
-      names = { (n:lower():gsub("_", " ")) }
+      names = { (n:lower():gsub("[^%w%d]+", " ")) }
     end
 
     t.name = n
