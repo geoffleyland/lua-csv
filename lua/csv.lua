@@ -276,11 +276,11 @@ local function separated_values_iterator(buffer, parameters)
 
 
   -- Is there some kind of Unicode BOM here?
-  if field_find("^\239\187\191") then  -- UTF-8
+  if field_sub(1, 3)     == "\239\187\191" then     -- UTF-8
     advance(3)
-  elseif field_find("^\254\255") then      -- UTF-16 big-endian
+  elseif field_sub(1, 2) == "\254\255"     then     -- UTF-16 big-endian
     advance(2)
-  elseif field_find("^\255\254") then      -- UTF-16 little-endian
+  elseif field_sub(1, 2) == "\255\254"     then     -- UTF-16 little-endian
     advance(2)
   end
 
