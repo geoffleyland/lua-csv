@@ -411,9 +411,17 @@ buffer_mt.__index = buffer_mt
 
 
 local function use(buffer, parameters)
+  parameters = parameters or {}
   parameters.filename = parameters.filename or "<unknown>"
   parameters.column_map = parameters.columns and
     column_map:new(parameters.columns)
+
+  if not buffer then
+    buffer = file_buffer:new(io.stdin)
+  elseif io.type(buffer) == "file" then
+    buffer = file_buffer:new(buffer)
+  end
+
   local f = { buffer = buffer, parameters = parameters }
   return setmetatable(f, buffer_mt)
 end
