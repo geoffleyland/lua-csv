@@ -410,7 +410,18 @@ local buffer_mt =
 buffer_mt.__index = buffer_mt
 
 
-local function use(buffer, parameters)
+--- Use an existing file or buffer as a stream to read csv from.
+--  (A buffer is just something that looks like a string in that we can do
+--  `buffer:sub()` and `buffer:find()`)
+--  @return a file object
+local function use(
+  buffer,           -- ?string|file|buffer: the buffer to read from.  If it's:
+                    --   - a string, read from that;
+                    --   - a file, turn it into a file_buffer;
+                    --   - nil, read from stdin
+                    -- otherwise assume it's already a a buffer.
+  parameters)       -- ?table: parameters controlling reading the file.
+                    -- See README.md
   parameters = parameters or {}
   parameters.filename = parameters.filename or "<unknown>"
   parameters.column_map = parameters.columns and
