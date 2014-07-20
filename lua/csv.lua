@@ -240,6 +240,37 @@ local function guess_separator(buffer, parameters)
 end
 
 
+local unicode_BOMS =
+{
+  {
+    length = 2,
+    BOMS =
+    {
+      ["\254\255"]      = true, -- UTF-16 big-endian
+      ["\255\254"]      = true, -- UTF-16 little-endian
+    }
+  },
+  {
+    length = 3,
+    BOMS =
+    {
+      ["\239\187\191"]  = true, -- UTF-8
+    }
+  }
+}
+
+
+local function find_unicode_BOM(sub)
+  for _, x in ipairs(unicode_BOMS) do
+    local code = sub(1, x.length)
+    if x.BOMS[code] then
+      return x.length
+    end
+  end
+  return 0
+end
+
+
 --- Iterate through the records in a file
 --  Since records might be more than one line (if there's a newline in quotes)
 --  and line-endings might not be native, we read the file in chunks of
@@ -276,14 +307,7 @@ local function separated_values_iterator(buffer, parameters)
 
 
   -- Is there some kind of Unicode BOM here?
-  if field_sub(1, 3)     == "\239\187\191" then     -- UTF-8
-    advance(3)
-  elseif field_sub(1, 2) == "\254\255"     then     -- UTF-16 big-endian
-    advance(2)
-  elseif field_sub(1, 2) == "\255\254"     then     -- UTF-16 little-endian
-    advance(2)
-  end
-
+  advance(find_unicode_BOM(field_sub))
 
   -- Start reading the file
   local sep = guess_separator(buffer, parameters)
