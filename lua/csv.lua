@@ -228,15 +228,41 @@ end
 
 ------------------------------------------------------------------------------
 
---- If the user hasn't specified a separator, try to work out what it is.
-local function guess_separator(buffer, parameters)
-  local sep = parameters.separator
-  if not sep then
-    local _
-    _, _, sep = buffer:find("([,\t])", 1)
+local separator_candidates = { ",", "\t", "|" }
+local guess_separator_params = { record_limit = 8; }
+
+
+local function try_separator(buffer, sep, f)
+  guess_separator_params.separator = sep
+  local min, max = math.huge, 0
+  local lines, split_lines = 0, 0
+  local iterator = coroutine.wrap(function() f(buffer, guess_separator_params) end)
+  for t in iterator do
+    min = math.min(min, #t)
+    max = math.max(max, #t)
+    split_lines = split_lines + (t[2] and 1 or 0)
+    lines = lines + 1
   end
-  sep = "(["..sep.."\n\r])"
-  return sep
+  if split_lines / lines > 0.75 then
+    return max - min
+  else
+    return math.huge
+  end
+end
+
+
+--- If the user hasn't specified a separator, try to work out what it is.
+function guess_separator(buffer, f)
+  local best_separator, lowest_diff = "", math.huge
+  for _, s in ipairs(separator_candidates) do
+    local ok, diff = pcall(function() return try_separator(buffer, s, f) end)
+    if ok and diff < lowest_diff then
+      best_separator = s
+      lowest_diff = diff
+    end
+  end
+
+  return best_separator
 end
 
 
@@ -309,13 +335,16 @@ local function separated_values_iterator(buffer, parameters)
   -- Is there some kind of Unicode BOM here?
   advance(find_unicode_BOM(field_sub))
 
+
   -- Start reading the file
-  local sep = guess_separator(buffer, parameters)
+  local sep = "(["..(parameters.separator or
+                     guess_separator(buffer, separated_values_iterator)).."\n\r])"
   local line_start = 1
   local line = 1
   local field_count, fields, starts, nonblanks = 0, {}, {}
   local header, header_read
   local field_start_line, field_start_column
+  local record_count = 0
 
 
   local function problem(message)
@@ -393,6 +422,11 @@ local function separated_values_iterator(buffer, parameters)
       else
         if nonblanks or field_count > 1 then -- ignore blank lines
           coroutine.yield(fields, starts)
+          record_count = record_count + 1
+          if parameters.record_limit and
+             record_count >= parameters.record_limit then
+            break
+          end
         end
       end
       field_count, fields, starts, nonblanks = 0, {}, {}

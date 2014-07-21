@@ -81,6 +81,14 @@ apple:four,charlie:60!]],
   apple = { name = "ALPHA", transform = string.lower },
   charlie = { transform = function(x) return tonumber(x) * 10 end }}})
 
+test("../test-data/bars.txt", [[
+there's a comma in this field, but no newline,embedded
+newline,embedded
+newline!
+embedded
+newline,embedded
+newline,embedded
+newline!]])
 
 
 if errors == 0 then
