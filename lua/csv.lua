@@ -420,7 +420,7 @@ local function separated_values_iterator(buffer, parameters)
     if not this_sep or this_sep == "\r" or this_sep == "\n" then
       if parameters.column_map and not header_read then
         header_read = parameters.column_map:read_header(fields)
-      elseif parameters.header and not header then
+      elseif parameters.header and not header_read then
         if nonblanks or field_count > 1 then -- ignore blank lines
           header = fields
           header_read = true
