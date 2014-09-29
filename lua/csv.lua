@@ -35,6 +35,12 @@ end
 local column_map = {}
 column_map.__index = column_map
 
+
+local function normalise_string(s)
+  return (s:lower():gsub("[^%w%d]+", " "):gsub("^ *(.-) *$", "%1"))
+end
+
+
 --- Parse a list of columns.
 --  The main job here is normalising column names and dealing with columns
 --  for which we have more than one possible name in the header.
@@ -46,10 +52,10 @@ function column_map:new(columns)
     if type(v) == "table" then
       t = { transform = v.transform, default = v.default }
       if v.name then
-        names = { (v.name:gsub("[^%w%d]+", " ")) }
+        names = { normalise_string(v.name) }
       elseif v.names then
         names = v.names
-        for i, n in ipairs(names) do names[i] = n:gsub("[^%w%d]+", " ") end
+        for i, n in ipairs(names) do names[i] = normalise_string(n) end
       end
     else
       if type(v) == "function" then
@@ -84,7 +90,7 @@ function column_map:read_header(header)
   local found = {}
   local found_any
   for i, word in ipairs(header) do
-    word = word:lower():gsub("[^%w%d]+", " "):gsub("^ *(.-) *$", "%1")
+    word = normalise_string(word)
     local r = self.name_map[word]
     if r then
       index_map[i] = r
