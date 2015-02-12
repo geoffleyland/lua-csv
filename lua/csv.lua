@@ -541,7 +541,7 @@ local function openstring(
   parameters = parameters or {}
 
 
-  parameters.filename = parameters.filename or makename(s)
+  parameters.filename = parameters.filename or makename(filecontents)
   parameters.buffer_size = parameters.buffer_size or #filecontents
   return use(filecontents, parameters)
 end
