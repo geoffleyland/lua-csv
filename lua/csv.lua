@@ -62,6 +62,9 @@ function column_map:new(columns)
         t = { transform = v }
       else
         t = {}
+        if type(v) == "string" then
+          names = { normalise_string(v) }
+        end
       end
     end
 
