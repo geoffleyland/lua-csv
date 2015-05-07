@@ -40,9 +40,9 @@ controlling how the file is read:
 
     + `{ word = true }` then the only field in the file would be
         `{ word = "ONE" }`
-    + `{ first = { name = "word"} }` then it would be { first = "ONE" }
-    + `{ word = { transform = string.lower }}` would give { word = "one" }
-    +
+    + `{ first = { name = "word"} }` then it would be `{ first = "ONE" }`
+    + `{ word = { transform = string.lower }}` would give `{ word = "one" }`
+    + finally,
             { word = true
               number = { transform = function(x) return tonumber(x) / 10 end }}
       would give `{ word = "ONE", number = 1 }`
