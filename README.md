@@ -43,8 +43,10 @@ controlling how the file is read:
     + `{ first = { name = "word"} }` then it would be `{ first = "ONE" }`
     + `{ word = { transform = string.lower }}` would give `{ word = "one" }`
     + finally,
+
             { word = true
               number = { transform = function(x) return tonumber(x) / 10 end }}
+
       would give `{ word = "ONE", number = 1 }`
 
     A column can have more than one name: 
